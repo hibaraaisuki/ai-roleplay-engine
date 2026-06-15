@@ -14,6 +14,8 @@
 
 An emotion-tracking engine purpose-built for AI role-play. It quantifies the character-user relationship with three numerical dimensions (trust, closeness, warmth), auto-updates values via keyword matching, and drives the AI to exhibit different behavior patterns at different relationship stages.
 
+If you have already deployed `Claude` and are using it for many tasks, why not make its interactions more engaging? All you need to do is download a few files and add the invocation instructions on `CLAUDE.md`. By consuming a small amount of tokens, you can cultivate an emotionally rich AI assistant.
+
 **You don't write prompts. The engine drives them.**
 
 ---
@@ -33,71 +35,117 @@ An emotion-tracking engine purpose-built for AI role-play. It quantifies the cha
 
 ## How to Use
 
-### 1. Prepare Character Config
+### Step 1: Download Engine Files
 
-Create `settings/character_config.json` (emotion model) and `settings/character_profile.md` (character personality). Copy from an existing character config or write from scratch — see [ENGINE.md](ENGINE.md) for processing level guidance.
+Copy these files/folders to the directory where you want to keep the engine (e.g., `D:\engines\roleplay\`):
 
-`character_config.json` core fields:
-- `character` — role name
-- `dimensions` — 3D emotion parameters (baselines, half-lives, ranges)
-- `event_table` — keyword → delta mapping rules
-- `stage_guides` — behavior guidance text for each relationship stage
-- `processing_level` — processing tier (0-3)
-
-`character_profile.md` — character identity, personality, speech style, action pool, special triggers.
-
-### 2. Prepare CLAUDE.md
-
-Declare the engine path in your project's `CLAUDE.md`:
-
-```markdown
-Engine root: C:\Users\Administrator\Documents\AI助手记忆
-
-Read in order:
-1. {ENGINE_ROOT}\ENGINE.md — Tool rules
-2. {ENGINE_ROOT}\settings\character_profile.md — Character personality
+```
+tool/                  ← All 7 Python scripts (required)
+ENGINE.md              ← AI operations manual (Chinese)
+ENGINE_EN.md           ← AI operations manual (English)
+settings/              ← Character config directory (see Step 2)
 ```
 
-### 3. Initialize State
+You don't need to copy `README.md` or `CLAUDE.md` — README is for human reference, and CLAUDE.md goes in your own project (Step 4).
+
+### Step 2: Choose Language & Rename Settings
+
+`settings/` includes pre-written configs in Chinese and English. Pick one and remove the suffix:
+
+| Desired language | Action |
+|------------------|--------|
+| 中文 | `character_config_zh.json` → rename to `character_config.json` |
+| | `character_profile_zh.md` → rename to `character_profile.md` |
+| English | `character_config_en.json` → rename to `character_config.json` |
+| | `character_profile_en.md` → rename to `character_profile.md` |
+
+> The engine only recognizes the exact filenames `character_config.json` and `character_profile.md`. You must rename — don't modify the filename references in the engine source. Extra language files (e.g., `_zh.json`) can be kept or deleted, the engine ignores them.
+
+### Step 3: Verify Directory Structure
+
+After renaming, your engine directory should look like this:
+
+```
+D:\engines\roleplay\
+├── ENGINE.md              ← AI operations manual (Chinese)
+├── ENGINE_EN.md           ← AI operations manual (English)
+├── tool/                  ← Engine scripts
+│   ├── batch.py
+│   ├── process_event.py
+│   ├── get_context.py
+│   ├── add_preference.py
+│   ├── add_memory.py
+│   ├── record_action.py
+│   └── add_custom_item.py
+└── settings/
+    ├── character_profile.md   ← Character personality (renamed)
+    ├── character_config.json  ← Emotion model (renamed)
+    └── state.json             ← Auto-generated — no need to create manually
+```
+
+### Step 4: Configure CLAUDE.md
+
+In **your own project's root directory**, create or edit `CLAUDE.md` and add:
+
+```markdown
+## Role-Play Engine
+
+Engine root: D:\engines\roleplay
+
+Read in this order to enable role-play functionality:
+1. {ENGINE_ROOT}\ENGINE.md — Tool usage rules, processing levels, stage behavior guide
+2. {ENGINE_ROOT}\settings\character_profile.md — Character personality, speech patterns, mannerisms
+
+All script paths are relative to the engine root. ENGINE.md contains the full script reference table.
+```
+
+> **Use your own absolute path**, e.g., `C:\Users\YourName\Documents\roleplay`. If using English docs, change the first line to `ENGINE_EN.md`.
+
+### Step 5: Initialize and Start
 
 ```bash
 python tool/get_context.py
 ```
 
-The script auto-creates `settings/state.json` if missing.
-
-### 4. Start Chatting
-
-The AI will:
-1. Auto-fetch emotional context at conversation start
-2. Auto-process emotional events, record memories and actions
-3. Auto-write new preferences to config when discovered
-4. Auto-adjust tone and behavior based on current stage
+The script auto-creates `settings/state.json`. Then just start chatting — the AI will automatically fetch context, process events, record memories and actions.
 
 ---
 
-## File Structure
+## Customizing Character Settings
 
-```
-roleplay-engine/
-├── ENGINE.md              ← AI operations manual (Chinese)
-├── ENGINE_EN.md           ← AI operations manual (English)
-├── README.md              ← Chinese README
-├── README_EN.md           ← This file (English)
-├── CLAUDE.md              ← Role router (points to engine directory)
-├── tool/                  ← Universal engine scripts (public, role-agnostic)
-│   ├── batch.py           ← Batch ops (recommended)
-│   ├── process_event.py   ← Core: keyword match + EMA + decay
-│   ├── get_context.py     ← Output current state + behavior guidance
-│   ├── add_preference.py  ← AI self-improvement: append preferences
-│   ├── add_memory.py      ← Short-term memory management
-│   ├── record_action.py   ← Action logger (anti-repetition)
-│   └── add_custom_item.py ← User-saved custom actions/lines
-└── settings/              ← Role-specific (private)
-    ├── character_profile.md   ← Character personality & speech
-    ├── character_config.json  ← Emotion model config
-    └── state.json             ← Runtime state
-```
+The pre-written Haibara Ai config works out of the box, or you can adapt it for your own character.
+
+### Editing the Emotion Model (character_config.json)
+
+| Field | Purpose | How to Edit |
+|-------|---------|-------------|
+| `dimensions` | 3D emotion baselines, half-lives, ranges | Adjust values; longer trust half-life = slower to gain/lose |
+| `event_table` | Keyword → emotion delta rules | Write trigger words and delta values for your character |
+| `stages` | Four stage names | Rename to fit your character's relationship arc |
+| `stage_guides` | Behavior guidance per stage | Tell the AI how to act at each stage |
+| `processing_level` | Processing depth (0-3) | Use 3 for initial tuning, 1 for daily use, 0 when stable |
+
+### Editing Character Personality (character_profile.md)
+
+Follow the template format: identity, personality, speech style, action pool, special triggers. Use the preset file as a reference for structure.
+
+### Switching Roles
+
+1. Replace `settings/character_config.json` with the new role
+2. Replace `settings/character_profile.md` with the new role
+3. Delete `settings/state.json` (reset emotional state)
+4. Engine scripts (`tool/`) — **zero changes needed**
+
+---
+
+## Switching Languages
+
+1. Rename the target language setting files (e.g., `character_config_en.json` → `character_config.json`)
+2. Do the same for `character_profile_*.md` → `character_profile.md`
+3. Delete `state.json` (old memories can't migrate between languages)
+4. Update `CLAUDE.md` to point to `ENGINE_EN.md` instead of `ENGINE.md` (or vice versa)
+
+> **Note**: `character_config.json` and `character_profile.md` are hardcoded filenames — the engine only reads these exact names. Do not edit the source code to change them. `state.json` contains runtime data (memories, action history) which cannot be migrated between languages — a reset is required.
 
 ---
 
@@ -207,33 +255,6 @@ Set `processing_level` in `character_config.json` (0-3) to control AI analysis d
 | **3** | High | Deep: AI freely analyzes semantics, questions rules |
 
 Suggested: Level 3 for initial config design, Level 1 for daily use, Level 0 for stable operation.
-
----
-
-## Integrating into Any Project
-
-1. Copy `tool/` + `settings/` + `ENGINE.md` + `ENGINE_EN.md` to any directory, e.g. `D:\engines\roleplay\`
-2. In the target project's `CLAUDE.md`, add:
-
-```markdown
-## Role-Play Engine
-
-Engine root: D:\engines\roleplay
-
-Read in order:
-1. {ENGINE_ROOT}\ENGINE.md — Tool rules & engine docs
-2. {ENGINE_ROOT}\settings\character_profile.md — Character personality
-```
-
-3. Prepare character config files in `settings/`
-4. Done. The AI resolves tool paths from ENGINE.md using the declared engine root.
-
-## Switching Roles
-
-1. Replace `settings/character_config.json` with new role's emotion model config
-2. Replace `settings/character_profile.md` with new role's personality
-3. Delete or reset `settings/state.json`
-4. Engine scripts (`tool/`) — **zero changes needed**
 
 ---
 

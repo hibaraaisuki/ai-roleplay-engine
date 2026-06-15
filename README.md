@@ -14,6 +14,8 @@
 
 一个为 AI 角色扮演设计的情感追踪引擎。它用三个数值维度（信任、亲近、温度）量化角色与用户的关系状态，通过关键词匹配自动更新数值，驱动 AI 在不同关系阶段表现出不同的行为模式。
 
+如果你已经部署了`Claude`，并且已经在用 ta 做许多事情，为什么不让 ta 的交互更精彩一些呢？只需要下载几个文件，并在`CLAUDE.md`上加上调用说明，就可以消耗少量token，来培养一个情感丰富的AI助手。
+
 **你不写 Prompt，引擎帮你驱动 Prompt。**
 
 ---
@@ -33,71 +35,117 @@
 
 ## 怎么用
 
-### 1. 准备角色配置
+### 第一步：下载引擎文件
 
-创建 `settings/character_config.json`（情感模型配置）和 `settings/character_profile.md`（角色人格描述）。可以从现有角色配置复制修改，或参考 [ENGINE.md](ENGINE.md) 中的处理档位说明自行编写。
+将以下文件/文件夹复制到你用于存放引擎的目录（如 `D:\engines\roleplay\`）：
 
-`character_config.json` 核心字段：
-- `character` — 角色名
-- `dimensions` — 三维情感参数（baseline、半衰期、范围）
-- `event_table` — 关键词 → 情感增量的映射规则
-- `stage_guides` — 四个关系阶段的行为指引文本
-- `processing_level` — 处理档位 (0-3)
-
-`character_profile.md` — 角色的身份、性格、说话风格、动作池、特殊触发等。
-
-### 2. 准备 CLAUDE.md
-
-在项目根目录的 `CLAUDE.md` 中声明引擎路径：
-
-```markdown
-引擎根目录: C:\Users\Administrator\Documents\AI助手记忆
-
-按顺序阅读：
-1. {引擎根目录}\ENGINE.md — 工具使用规则
-2. {引擎根目录}\settings\character_profile.md — 角色人格
+```
+ENGINE.md              ← AI 操作手册（中文）
+ENGINE_EN.md           ← AI 操作手册（英文）
+settings/              ← 角色设定目录（下面第二步细说）
+tool/                  ← 全部 7 个 Python 脚本（必须）
 ```
 
-### 3. 初始化状态
+`README.md` 和 `CLAUDE.md` 不需要复制——README 是给你看的，CLAUDE.md 放在你自己的项目里（第四步）。
+
+### 第二步：选择语言设定
+
+`settings/` 下提供了中英两份预设，选一份去掉后缀即可：
+
+| 你想要的语言 | 操作 |
+|-------------|------|
+| 中文 | `character_config_zh.json` → 重命名为 `character_config.json` |
+| | `character_profile_zh.md` → 重命名为 `character_profile.md` |
+| English | `character_config_en.json` → rename to `character_config.json` |
+| | `character_profile_en.md` → rename to `character_profile.md` |
+
+> 引擎只认 `character_config.json` 和 `character_profile.md` 这两个固定文件名，所以必须改名。多余的语言文件（如 `_en.json`）删掉或留着都行，引擎不读它们。
+
+### 第三步：确认最终目录
+
+改完名后，你的引擎目录应该长这样：
+
+```
+D:\engines\roleplay\
+├── ENGINE.md              ← AI 操作手册（中文）
+├── ENGINE_EN.md           ← AI 操作手册（英文）
+├── tool/                  ← 引擎脚本
+│   ├── batch.py
+│   ├── process_event.py
+│   ├── get_context.py
+│   ├── add_preference.py
+│   ├── add_memory.py
+│   ├── record_action.py
+│   └── add_custom_item.py
+└── settings/
+    ├── character_profile.md   ← 角色人格（已改名）
+    ├── character_config.json  ← 情感模型（已改名）
+    └── state.json             ← 自动生成，不用手动创建
+```
+
+### 第四步：配置 CLAUDE.md
+
+在你**自己的项目根目录**下创建或编辑 `CLAUDE.md`，加入以下内容：
+
+```markdown
+## Role-Play Engine
+
+引擎根目录: D:\engines\roleplay
+
+务必按顺序阅读以下文件以启用角色扮演功能：
+1. {引擎根目录}\ENGINE.md — 工具使用规则、处理档位、行为阶段指引
+2. {引擎根目录}\settings\character_profile.md — 角色人格、说话模式、动作神态
+
+所有脚本路径以引擎根目录为基准，ENGINE.md 中有完整的脚本调用表。
+```
+
+> **路径写成你自己的绝对路径**，如 `C:\Users\你的用户名\Documents\roleplay`。用英文版 ENGINE 的话，第一行改为 `ENGINE_EN.md`。
+
+### 第五步：初始化并开始
 
 ```bash
 python tool/get_context.py
 ```
 
-脚本会自动创建 `settings/state.json`（如不存在）。
-
-### 4. 开始对话
-
-AI 会：
-1. 对话开始自动获取情感上下文
-2. 对话中自动处理情感事件、记录记忆和动作
-3. 发现新偏好时自动写入配置
-4. 根据当前阶段自动调整语气和行为
+脚本会自动创建 `settings/state.json`。然后直接开始和角色对话即可——AI 会自动获取上下文、处理事件、记录记忆和动作。
 
 ---
 
-## 文件结构
+## 自定义角色设定
 
-```
-roleplay-engine/
-├── ENGINE.md              ← AI 操作手册（中文）
-├── ENGINE_EN.md           ← AI operations manual (English)
-├── README.md              ← 本文件（中文）
-├── README_EN.md           ← English README
-├── CLAUDE.md              ← 角色路由（指向引擎目录）
-├── tool/                  ← 通用引擎脚本（公开，与角色无关）
-│   ├── batch.py           ← 批量操作（推荐）
-│   ├── process_event.py   ← 核心：关键词分类 + EMA + 衰减
-│   ├── get_context.py     ← 输出当前状态 + 行为指引
-│   ├── add_preference.py  ← AI 自我完善：追加偏好关键词
-│   ├── add_memory.py      ← 短期记忆管理
-│   ├── record_action.py   ← 动作记录（防重复）
-│   └── add_custom_item.py ← 用户保存的专属动作/台词
-└── settings/              ← 角色专属（私有）
-    ├── character_profile.md   ← 角色人格与说话模式
-    ├── character_config.json  ← 情感模型配置
-    └── state.json             ← 运行时状态
-```
+预设的灰原哀设定可以直接用，也可以改成你自己的角色。
+
+### 修改情感模型（character_config.json）
+
+| 字段 | 作用 | 怎么改 |
+|------|------|--------|
+| `dimensions` | 三维情感基线、半衰期、范围 | 调整数值；信任半衰期越长越难涨跌 |
+| `event_table` | 关键词 → 情感增量 | 按你的角色写触发词和 delta 值 |
+| `stages` | 四个阶段名称 | 改成适合你角色的阶段名 |
+| `stage_guides` | 每个阶段的行为指引 | 告诉 AI 该阶段应该怎么演 |
+| `processing_level` | 处理深度 (0-3) | 初次配角色用 3，日常用 1，稳定用 0 |
+
+### 修改角色人格（character_profile.md）
+
+按模板格式写：身份、性格、说话风格、动作池、特殊触发。参考预设文件的结构即可。
+
+### 切换角色
+
+1. 替换 `settings/character_config.json` 为新角色
+2. 替换 `settings/character_profile.md` 为新角色
+3. 删除 `settings/state.json`（重置情感状态）
+4. 引擎脚本（`tool/`）**一行不动**
+
+---
+
+## 切换语言
+
+1. 把目标语言的设定文件改名（如 `character_config_en.json` → `character_config.json`）
+2. 同理改 `character_profile_*.md` → `character_profile.md`
+3. 删除 `state.json`（语言不同，旧记忆无法迁移）
+4. 把 `CLAUDE.md` 里的 `ENGINE.md` 改成 `ENGINE_EN.md`（反之亦然）
+
+> **注意**：`character_config.json` 和 `character_profile.md` 是引擎硬编码的文件名，必须精确使用这两个名字，不要改源码中的文件名引用。`state.json` 存的是运行时数据，语言切换后旧记忆和动作历史无法迁移，必须重置。
 
 ---
 
@@ -207,33 +255,6 @@ new = old + event_delta × α    （α 默认 0.3）
 | **3** | 高 | 深度：AI 自由分析语义、质疑规则 |
 
 建议：初始设计角色配置用 Level 3，日常使用用 Level 1，长期稳定后用 Level 0。
-
----
-
-## 接入任意项目
-
-1. 将 `tool/` + `settings/` + `ENGINE.md` + `ENGINE_EN.md` 复制到任意目录，如 `D:\engines\roleplay\`
-2. 在目标项目的 `CLAUDE.md` 中添加：
-
-```markdown
-## Role-Play Engine
-
-引擎根目录: D:\engines\roleplay
-
-按顺序阅读：
-1. {引擎根目录}\ENGINE.md — 工具规则与引擎说明
-2. {引擎根目录}\settings\character_profile.md — 角色人格
-```
-
-3. 准备 `settings/` 下的角色配置文件
-4. 完成。AI 会根据 ENGINE.md 自动解析并调用工具
-
-## 切换角色
-
-1. 替换 `settings/character_config.json` 为新角色的情感模型配置
-2. 替换 `settings/character_profile.md` 为新角色的人格描述
-3. 删除或重置 `settings/state.json`
-4. 引擎脚本（`tool/`）——**一行不动**
 
 ---
 
