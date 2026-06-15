@@ -1,6 +1,6 @@
 # AI 角色扮演情感引擎
 
-> 轻量级、零服务器的 AI 角色扮演框架。6 个 Python 脚本 + JSON 配置 = 完整的情感追踪引擎。
+> 轻量级、零服务器的 AI 角色扮演框架。7 个 Python 脚本 + JSON 配置 = 完整的情感追踪引擎。
 >
 > **核心理念：工具管数值，AI 只管演。**
 
@@ -8,34 +8,53 @@
 
 ---
 
-## 特性
+## 这是什么
 
-- **三维情感模型**：信任度 (trust) + 亲近度 (closeness) + 温度 (warmth)
-- **EMA 平滑**：防止单次互动造成情感剧烈跳变，模拟人类"慢热慢冷"的惯性
-- **指数衰减**：长时间不互动，情感自然降温（三维各自独立的半衰期）
-- **AI 自我完善**：对话中自动发现角色偏好，写入配置，无需手动编辑 JSON
-- **四档处理深度**：从零 token 纯工具到深度思考，按需切换
-- **公私分离**：引擎公开，角色私有——切换角色只需替换 `settings/` 下的两个 `character_*` 文件
-- **多语言**：引擎文档提供中英双版 ([ENGINE.md](ENGINE.md) / [ENGINE_EN.md](ENGINE_EN.md))
+一个为 AI 角色扮演设计的情感追踪引擎。它用三个数值维度（信任、亲近、温度）量化角色与用户的关系状态，通过关键词匹配自动更新数值，驱动 AI 在不同关系阶段表现出不同的行为模式。
+
+**你不写 Prompt，引擎帮你驱动 Prompt。**
 
 ---
 
-## 快速开始
+## 特性
+
+- **三维情感模型**：信任度 (trust) + 亲近度 (closeness) + 温度 (warmth)，加权映射四阶段
+- **EMA 平滑**：防止单次互动造成情感剧烈跳变，模拟人类"慢热慢冷"的惯性
+- **指数衰减**：长时间不互动，情感自然降温（三维各自独立的半衰期）
+- **批量操作**：`batch.py` 将每轮对话的多次脚本调用合并为一次，state.json 仅读写一轮
+- **AI 自我完善**：对话中自动发现角色偏好，写入配置，无需手动编辑 JSON
+- **四档处理深度**：从零 token 纯工具到深度思考，按需切换
+- **公私分离**：引擎公开，角色私有——切换角色只需替换 `settings/` 下的两个 `character_*` 文件
+- **多语言**：引擎文档 + README 提供中英双版
+
+---
+
+## 怎么用
 
 ### 1. 准备角色配置
 
-```bash
-cp settings/character_config.example.json settings/character_config.json
-cp settings/character_profile.example.md settings/character_profile.md
-```
+创建 `settings/character_config.json`（情感模型配置）和 `settings/character_profile.md`（角色人格描述）。可以从现有角色配置复制修改，或参考 [ENGINE.md](ENGINE.md) 中的处理档位说明自行编写。
 
-编辑 `character_config.json`：修改 `character` 字段、`event_table` 关键词与权重、`stage_guides` 行为指引、初始 `preferences`。
+`character_config.json` 核心字段：
+- `character` — 角色名
+- `dimensions` — 三维情感参数（baseline、半衰期、范围）
+- `event_table` — 关键词 → 情感增量的映射规则
+- `stage_guides` — 四个关系阶段的行为指引文本
+- `processing_level` — 处理档位 (0-3)
 
-编辑 `character_profile.md`：填入角色的身份、性格、说话风格、动作池、特殊触发等。
+`character_profile.md` — 角色的身份、性格、说话风格、动作池、特殊触发等。
 
 ### 2. 准备 CLAUDE.md
 
-复制 `CLAUDE.example.md` → `CLAUDE.md`，设置引擎根目录的绝对路径。
+在项目根目录的 `CLAUDE.md` 中声明引擎路径：
+
+```markdown
+引擎根目录: C:\Users\Administrator\Documents\AI助手记忆
+
+按顺序阅读：
+1. {引擎根目录}\ENGINE.md — 工具使用规则
+2. {引擎根目录}\settings\character_profile.md — 角色人格
+```
 
 ### 3. 初始化状态
 
@@ -47,10 +66,11 @@ python tool/get_context.py
 
 ### 4. 开始对话
 
-打开 Claude Code，AI 会：
-1. 对话开始自动调用 `get_context.py` 获取情感状态
-2. 对话中自动调用 `process_event.py` 处理情感事件
-3. 发现新偏好时自动调用 `add_preference.py` 写入配置
+AI 会：
+1. 对话开始自动获取情感上下文
+2. 对话中自动处理情感事件、记录记忆和动作
+3. 发现新偏好时自动写入配置
+4. 根据当前阶段自动调整语气和行为
 
 ---
 
@@ -58,24 +78,85 @@ python tool/get_context.py
 
 ```
 roleplay-engine/
-├── ENGINE.md              ← 引擎规则说明书（中文）
-├── ENGINE_EN.md           ← Engine rules (English)
+├── ENGINE.md              ← AI 操作手册（中文）
+├── ENGINE_EN.md           ← AI operations manual (English)
 ├── README.md              ← 本文件（中文）
 ├── README_EN.md           ← English README
-├── CLAUDE.md              ← 角色路由
-├── CLAUDE.example.md      ← 路由模板（公开）
+├── CLAUDE.md              ← 角色路由（指向引擎目录）
 ├── tool/                  ← 通用引擎脚本（公开，与角色无关）
+│   ├── batch.py           ← 批量操作（推荐）
 │   ├── process_event.py   ← 核心：关键词分类 + EMA + 衰减
 │   ├── get_context.py     ← 输出当前状态 + 行为指引
-│   ├── add_preference.py  ← AI 自我完善
+│   ├── add_preference.py  ← AI 自我完善：追加偏好关键词
 │   ├── add_memory.py      ← 短期记忆管理
 │   ├── record_action.py   ← 动作记录（防重复）
-│   └── add_custom_item.py ← 用户专属动作/台词
-└── settings/              ← 角色专属
-    ├── character_profile.md          ← 角色人格
-    ├── character_config.json         ← 情感模型配置
-    ├── state.json                    ← 运行时状态
+│   └── add_custom_item.py ← 用户保存的专属动作/台词
+└── settings/              ← 角色专属（私有）
+    ├── character_profile.md   ← 角色人格与说话模式
+    ├── character_config.json  ← 情感模型配置
+    └── state.json             ← 运行时状态
 ```
+
+---
+
+## 什么原理
+
+### 三维情感模型
+
+| 维度 | 范围 | 含义 | 默认半衰期 |
+|------|:---:|------|:---:|
+| **trust** (信任) | 0–100 | 对用户能力/可靠性的认可 | 60 天 |
+| **closeness** (亲近) | 0–100 | 情感距离，愿不愿并肩 | 14 天 |
+| **warmth** (温度) | -100~100 | 语气冷热，正=软/负=刺 | 7 天 |
+
+三维加权映射到四个关系阶段（陌生 → 同僚 → 同伴 → 珍视），阶段名称和行为指引可在 `character_config.json` 中自定义。
+
+### 处理流程
+
+```
+用户输入 → AI 描述事件（≤20字）
+         → 关键词匹配（遍历 event_table，按优先级，先匹配先生效）
+         → 计算距上次互动天数 → 指数衰减
+         → EMA 平滑叠加 → 限幅到合法范围
+         → 更新 state.json → 输出阶段 + 行为指引
+```
+
+### 衰减公式
+
+长时间不互动，情感自然回落至基线：
+
+```
+V = baseline + (V_current - baseline) × e^(-k × days)
+k = ln(2) / half_life_days
+```
+
+- trust 半衰期最长（60 天）—— 信任来去都慢
+- warmth 半衰期最短（7 天）—— 温度波动最快
+
+### EMA 平滑
+
+防止单次事件造成数值剧烈跳变：
+
+```
+new = old + event_delta × α    （α 默认 0.3）
+```
+
+事件 delta 不会直接全额生效，而是乘以平滑系数缓慢累积，模拟人类情感的惯性。
+
+---
+
+## 处理档位
+
+在 `character_config.json` 中设置 `processing_level` (0-3)，控制 AI 的分析深度和 token 消耗：
+
+| 档位 | Token | AI 行为 |
+|:---:|:---:|------|
+| **0** | 零 | 纯工具：AI 不分析不提议，只表演 |
+| **1** | 低 | 标准：AI 可补充缺失关键词 |
+| **2** | 中 | 辅助：AI 可改写事件、提议权重 |
+| **3** | 高 | 深度：AI 自由分析语义、质疑规则 |
+
+建议：初始设计角色配置用 Level 3，日常使用用 Level 1，长期稳定后用 Level 0。
 
 ---
 
@@ -94,7 +175,7 @@ roleplay-engine/
 2. {引擎根目录}\settings\character_profile.md — 角色人格
 ```
 
-3. 复制并自定义 `settings/` 下的 example 文件
+3. 准备 `settings/` 下的角色配置文件
 4. 完成。AI 会根据 ENGINE.md 自动解析并调用工具
 
 ## 切换角色
@@ -106,31 +187,10 @@ roleplay-engine/
 
 ---
 
-## 情感模型
-
-| 维度 | 范围 | 含义 | 默认半衰期 |
-|------|:---:|------|:---:|
-| **trust** (信任) | 0–100 | 对用户能力/可靠性的认可 | 60 天 |
-| **closeness** (亲近) | 0–100 | 情感距离，愿不愿并肩 | 14 天 |
-| **warmth** (温度) | -100~100 | 语气冷热，正=软/负=刺 | 7 天 |
-
-三维加权映射到四阶段（阶段名称和各阶段指引可在 `character_config.json` 中自定义）。
-
-## 处理档位
-
-在 `character_config.json` 中设置 `processing_level` (0-3)：
-
-| 档位 | Token | AI 行为 |
-|:---:|:---:|------|
-| **0** | 零 | 纯工具：AI 不分析不提议 |
-| **1** | 低 | 标准：AI 可补充缺失关键词 |
-| **2** | 中 | 辅助：AI 可改写事件、提议权重 |
-| **3** | 高 | 深度：AI 自由分析语义、质疑规则 |
-
 ## 依赖
 
 - Python 3.7+
-- 零第三方库
+- 零第三方库（仅标准库：`json`、`os`、`sys`、`math`、`datetime`）
 
 ## License
 
