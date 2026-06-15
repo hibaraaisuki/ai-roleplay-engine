@@ -4,7 +4,11 @@ import json
 import os
 import sys
 
-STATE_FILE = r"C:\Users\Administrator\Documents\AI助手记忆\state.json"
+TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
+ENGINE_ROOT = os.path.dirname(TOOL_DIR)
+SETTINGS_DIR = os.path.join(ENGINE_ROOT, "settings")
+
+STATE_FILE = os.path.join(SETTINGS_DIR, "state.json")
 
 DEFAULT_STATE = {
     "affection_stage": 0,
@@ -17,15 +21,18 @@ DEFAULT_STATE = {
     "max_custom_actions": 5
 }
 
+
 def load_state():
     if not os.path.exists(STATE_FILE):
         return DEFAULT_STATE.copy()
     with open(STATE_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
+
 def save_state(state):
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
+
 
 def main():
     if len(sys.argv) < 2:
@@ -41,6 +48,7 @@ def main():
         state["short_memory"] = state["short_memory"][-max_len:]
     save_state(state)
     print(f"已记录记忆：「{text}」")
+
 
 if __name__ == "__main__":
     main()

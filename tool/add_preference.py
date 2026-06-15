@@ -4,7 +4,11 @@ import json
 import os
 import sys
 
-CONFIG_FILE = r"C:\Users\Administrator\Documents\AI助手记忆\character_config.json"
+TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
+ENGINE_ROOT = os.path.dirname(TOOL_DIR)
+SETTINGS_DIR = os.path.join(ENGINE_ROOT, "settings")
+
+CONFIG_FILE = os.path.join(SETTINGS_DIR, "character_config.json")
 
 
 def load_config():

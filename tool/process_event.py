@@ -8,8 +8,12 @@ from datetime import datetime, timezone, timedelta
 
 TZ = timezone(timedelta(hours=8))  # UTC+8
 
-STATE_FILE = r"C:\Users\Administrator\Documents\AI助手记忆\state.json"
-CONFIG_FILE = r"C:\Users\Administrator\Documents\AI助手记忆\character_config.json"
+TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
+ENGINE_ROOT = os.path.dirname(TOOL_DIR)
+SETTINGS_DIR = os.path.join(ENGINE_ROOT, "settings")
+
+STATE_FILE = os.path.join(SETTINGS_DIR, "state.json")
+CONFIG_FILE = os.path.join(SETTINGS_DIR, "character_config.json")
 
 
 def load_json(path):
@@ -190,16 +194,10 @@ def main():
     # 5. 更新时间戳
     state["affection"]["last_update"] = datetime.now(TZ).isoformat()
 
-    # 6. 自动添加记忆
-    state.setdefault("short_memory", []).append(text)
-    max_mem = state.get("max_memory", 10)
-    if len(state["short_memory"]) > max_mem:
-        state["short_memory"] = state["short_memory"][-max_mem:]
-
-    # 7. 保存
+    # 6. 保存
     save_json(STATE_FILE, state)
 
-    # 8. 计算阶段 + 交叉指引 + 输出
+    # 7. 计算阶段 + 交叉指引 + 输出
     stage = calc_stage(state["affection"], stage_mapping, thresholds)
     stage_name = stages[stage] if stage < len(stages) else stages[-1]
     cross_tips = gen_cross_guidance(state["affection"], config)

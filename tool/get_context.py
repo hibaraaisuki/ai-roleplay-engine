@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""读取灰原哀状态上下文并格式化输出（v2 通用引擎版）"""
+"""读取角色状态上下文并格式化输出（v2 通用引擎版）"""
 import json
 import os
 
-STATE_FILE = r"C:\Users\Administrator\Documents\AI助手记忆\state.json"
-CONFIG_FILE = r"C:\Users\Administrator\Documents\AI助手记忆\character_config.json"
+TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
+ENGINE_ROOT = os.path.dirname(TOOL_DIR)
+SETTINGS_DIR = os.path.join(ENGINE_ROOT, "settings")
+
+STATE_FILE = os.path.join(SETTINGS_DIR, "state.json")
+CONFIG_FILE = os.path.join(SETTINGS_DIR, "character_config.json")
 
 
 def load_json(path):
@@ -85,6 +89,10 @@ def main():
     guide = stage_guides.get(str(stage), "")
 
     lines = []
+    # 处理档位
+    level = config.get("processing_level", 1)
+    level_guide = config.get("_processing_level_guide", {}).get(str(level), "")
+    lines.append(f"处理档位: Level {level} — {level_guide}")
     # 三维状态
     lines.append(f"信任:{t}  亲近:{c}  温度:{w}  阶段:{stage_name}（{stage + 1}/{len(stages)}）")
     # 基础指引
