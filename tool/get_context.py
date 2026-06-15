@@ -2,6 +2,7 @@
 """读取角色状态上下文并格式化输出（v2 通用引擎版）"""
 import json
 import os
+import sys
 
 TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
 ENGINE_ROOT = os.path.dirname(TOOL_DIR)
@@ -67,12 +68,67 @@ def gen_cross_guidance(affection, config):
     return tips
 
 
+def output_json(state, config, stage, stage_name, cross, level, level_guide):
+    """JSON 输出 — ensure_ascii 确保跨编码兼容"""
+    aff = state["affection"]
+    result = {
+        "processing_level": level,
+        "processing_level_guide": level_guide,
+        "affection": {
+            "trust": round(aff["trust"]),
+            "closeness": round(aff["closeness"]),
+            "warmth": round(aff["warmth"])
+        },
+        "stage": {
+            "index": stage,
+            "name": stage_name,
+            "total": len(config["stages"])
+        },
+        "guidance": {
+            "stage": config.get("stage_guides", {}).get(str(stage), ""),
+            "cross": cross
+        },
+        "memories": state.get("short_memory", [])[-10:],
+        "action_history": state.get("action_history", [])[-10:],
+        "custom_actions": state.get("custom_actions", [])
+    }
+    print(json.dumps(result, ensure_ascii=True, indent=2))
+
+
+def output_text(affection, stage, stage_name, level, level_guide, guide, cross,
+                memories, customs, recent):
+    """原始文本输出（保留向后兼容）"""
+    lines = []
+    lines.append(f"处理档位: Level {level} — {level_guide}")
+    t, c, w = round(affection["trust"]), round(affection["closeness"]), round(affection["warmth"])
+    lines.append(f"信任:{t}  亲近:{c}  温度:{w}  阶段:{stage_name}（{stage + 1}/{len(customs) if False else 4}）")
+    lines.append(f"行为指引: {guide}")
+    if cross:
+        lines.append("维度指引:")
+        for tip in cross:
+            lines.append(f"  - {tip}")
+    if memories:
+        lines.append("近期发生的事：")
+        for m in memories[-8:]:
+            lines.append(f"  - {m}")
+    if customs:
+        lines.append("用户保存的专属动作/台词（可轮换）：")
+        for ci in customs:
+            lines.append(f"  - {ci}")
+    if recent:
+        lines.append("最近用过的动作（请避免重复）：")
+        for a in recent:
+            lines.append(f"  - {a}")
+    print("\n".join(lines))
+
+
 def main():
+    use_json = "--json" in sys.argv
+
     config = load_json(CONFIG_FILE)
     stage_mapping = config["stage_mapping"]
     thresholds = stage_mapping["thresholds"]
     stages = config["stages"]
-    stage_guides = config.get("stage_guides", {})
 
     if os.path.exists(STATE_FILE):
         state = load_json(STATE_FILE)
@@ -83,49 +139,21 @@ def main():
                  "max_memory": 10, "max_action_history": 30, "max_custom_actions": 10}
 
     aff = state["affection"]
-    t, c, w = round(aff["trust"]), round(aff["closeness"]), round(aff["warmth"])
     stage = calc_stage(aff, stage_mapping, thresholds)
     stage_name = stages[stage] if stage < len(stages) else stages[-1]
-    guide = stage_guides.get(str(stage), "")
-
-    lines = []
-    # 处理档位
+    guide = config.get("stage_guides", {}).get(str(stage), "")
+    cross = gen_cross_guidance(aff, config)
     level = config.get("processing_level", 1)
     level_guide = config.get("_processing_level_guide", {}).get(str(level), "")
-    lines.append(f"处理档位: Level {level} — {level_guide}")
-    # 三维状态
-    lines.append(f"信任:{t}  亲近:{c}  温度:{w}  阶段:{stage_name}（{stage + 1}/{len(stages)}）")
-    # 基础指引
-    lines.append(f"行为指引: {guide}")
-    # 交叉指引
-    cross = gen_cross_guidance(aff, config)
-    if cross:
-        lines.append("维度指引:")
-        for tip in cross:
-            lines.append(f"  - {tip}")
 
-    # 短期记忆
-    memories = state.get("short_memory", [])
-    if memories:
-        lines.append("近期发生的事：")
-        for m in memories[-8:]:
-            lines.append(f"  - {m}")
-
-    # 专属动作
-    customs = state.get("custom_actions", [])
-    if customs:
-        lines.append("用户保存的专属动作/台词（可轮换）：")
-        for ci in customs:
-            lines.append(f"  - {ci}")
-
-    # 最近动作
-    recent = state.get("action_history", [])[-10:]
-    if recent:
-        lines.append("最近用过的动作（请避免重复）：")
-        for a in recent:
-            lines.append(f"  - {a}")
-
-    print("\n".join(lines))
+    if use_json:
+        output_json(state, config, stage, stage_name, cross, level, level_guide)
+    else:
+        memories = state.get("short_memory", [])
+        customs = state.get("custom_actions", [])
+        recent = state.get("action_history", [])[-10:]
+        output_text(aff, stage, stage_name, level, level_guide, guide, cross,
+                    memories, customs, recent)
 
 
 if __name__ == "__main__":

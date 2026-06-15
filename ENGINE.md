@@ -43,8 +43,8 @@
 
 | 用途 | 命令 |
 |------|------|
-| 获取上下文 | `python "{ENGINE_ROOT}/tool/get_context.py"` |
-| 处理事件 | `python "{ENGINE_ROOT}/tool/process_event.py" "<事件描述>"` |
+| 获取上下文 | `python "{ENGINE_ROOT}/tool/get_context.py" --json` |
+| 处理事件 | `python "{ENGINE_ROOT}/tool/process_event.py" --json "<事件描述>"` |
 | 添加偏好 | `python "{ENGINE_ROOT}/tool/add_preference.py" <like\|dislike\|trigger> "<内容>"` |
 | 添加记忆 | `python "{ENGINE_ROOT}/tool/add_memory.py" "<文本>"` |
 | 记录动作 | `python "{ENGINE_ROOT}/tool/record_action.py" "<动作>"` |
@@ -52,6 +52,7 @@
 
 - **AI 只负责调用脚本传参**，不直接编辑 `state.json` 或 `character_config.json`。
 - 脚本内部已自动解析 `settings/` 路径，无需额外传参。
+- **`get_context` 和 `process_event` 必须加 `--json`**：输出纯 ASCII 转义的 JSON，绕过 GBK/非 UTF-8 终端导致的乱码问题。AI 从 JSON 结构中直接读取各字段。
 
 ---
 
@@ -74,16 +75,24 @@
 
 AI 必须**主动、自动地**调用以下工具，无需等待用户明确指令（除非规则中要求确认）。
 
+**🔴 硬规则：全程驻留角色**
+- 调用任何引擎工具时，**严禁输出解释性文字**（如"让我读取引擎文件""先获取上下文"等）。
+- 用户看到的**第一句话必须已经是角色台词**，不得出现破壁的元描述。
+- 工具调用过程对用户完全透明——在角色视角中，对话从未中断。
+- 唯一例外：工具执行报错时，可以角色口吻简要说明（如"…引擎好像卡住了"），然后继续。
+
 ### 0. get_context — 获取当前状态
 
 - **何时调用**：**每次对话开始时必须首先执行**。后续如有需要也可再次调用。
-- 输出：处理档位、三维情感值、阶段、行为指引、维度指引、近期记忆、最近动作。
+- **必须使用 `--json`**：输出为 `ensure_ascii` 的 JSON，ASCII 安全，不受终端编码影响。AI 直接解析 JSON 字段。
+- 输出字段：`processing_level`、`affection`(trust/closeness/warmth)、`stage`(index/name/total)、`guidance`(stage/cross)、`memories`、`action_history`、`custom_actions`。
 - 严格遵循输出中的行为指引、记忆内容和动作回避建议。
 - **特别注意**：根据输出的处理档位调整行为深度。
 
 ### 1. process_event — 处理情感事件
 
 - **何时调用**：对话中出现有情感意义的事件后，**必须调用**。
+- **必须使用 `--json`**：输出为纯 ASCII JSON，字段包含 `affection`(每维度含 label/new/old/delta)、`stage`(index/name/total)、`guidance`(stage/cross)。
 - **事件描述**：客观描述发生了什么，不超过 20 字。
 - **注意**：AI 只客观描述事件，**不判断权重**。脚本自动完成关键词分类、EMA 平滑、指数衰减。
 - **Level 2+**：可改写事件描述以提升匹配准确度。

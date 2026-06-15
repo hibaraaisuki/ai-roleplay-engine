@@ -62,7 +62,7 @@ roleplay-engine/
 ├── ENGINE_EN.md           ← Engine rules (English)
 ├── README.md              ← 本文件（中文）
 ├── README_EN.md           ← English README
-├── CLAUDE.md              ← 角色路由（私有，gitignored）
+├── CLAUDE.md              ← 角色路由
 ├── CLAUDE.example.md      ← 路由模板（公开）
 ├── tool/                  ← 通用引擎脚本（公开，与角色无关）
 │   ├── process_event.py   ← 核心：关键词分类 + EMA + 衰减
@@ -72,12 +72,9 @@ roleplay-engine/
 │   ├── record_action.py   ← 动作记录（防重复）
 │   └── add_custom_item.py ← 用户专属动作/台词
 └── settings/              ← 角色专属
-    ├── character_profile.md          ← 角色人格（私有，gitignored）
-    ├── character_profile.example.md  ← 毛利兰人格示例（公开）
-    ├── character_config.json         ← 情感模型配置（私有，gitignored）
-    ├── character_config.example.json ← 毛利兰配置示例（公开）
-    ├── state.json                    ← 运行时状态（私有，gitignored）
-    └── state.example.json            ← 初始状态模板（公开）
+    ├── character_profile.md          ← 角色人格
+    ├── character_config.json         ← 情感模型配置
+    ├── state.json                    ← 运行时状态
 ```
 
 ---
@@ -129,19 +126,6 @@ roleplay-engine/
 | **1** | 低 | 标准：AI 可补充缺失关键词 |
 | **2** | 中 | 辅助：AI 可改写事件、提议权重 |
 | **3** | 高 | 深度：AI 自由分析语义、质疑规则 |
-
-## 发布到 GitHub
-
-以下文件为角色私有，已在 `.gitignore` 中排除：
-
-```gitignore
-CLAUDE.md
-settings/character_config.json
-settings/character_profile.md
-settings/state.json
-```
-
-其余全部可以公开。示例配置使用**毛利兰**——温柔开朗型角色，与默认的灰原哀（冷淡傲娇）形成对比，方便测试引擎在不同性格类型下的表现。
 
 ## 依赖
 

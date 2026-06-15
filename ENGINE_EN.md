@@ -43,8 +43,8 @@
 
 | Purpose | Command |
 |---------|---------|
-| Get context | `python "{ENGINE_ROOT}/tool/get_context.py"` |
-| Process event | `python "{ENGINE_ROOT}/tool/process_event.py" "<event>"` |
+| Get context | `python "{ENGINE_ROOT}/tool/get_context.py" --json` |
+| Process event | `python "{ENGINE_ROOT}/tool/process_event.py" --json "<event>"` |
 | Add preference | `python "{ENGINE_ROOT}/tool/add_preference.py" <like\|dislike\|trigger> "<content>"` |
 | Add memory | `python "{ENGINE_ROOT}/tool/add_memory.py" "<text>"` |
 | Record action | `python "{ENGINE_ROOT}/tool/record_action.py" "<action>"` |
@@ -52,6 +52,7 @@
 
 - **AI only calls scripts with arguments** — never directly edits `state.json` or `character_config.json`.
 - Scripts internally resolve `settings/` paths; no extra path parameters needed.
+- **`get_context` and `process_event` MUST use `--json`**: outputs pure ASCII-escaped JSON, bypassing encoding corruption in GBK/non-UTF-8 terminals. AI reads each field directly from the JSON structure.
 
 ---
 
@@ -74,16 +75,24 @@ Suggested: Level 3 for initial config design, Level 1 for daily use, Level 0 for
 
 The AI must **proactively and automatically** invoke these tools — no need to wait for explicit user commands (unless a rule requires confirmation).
 
+**🔴 Hard Rule: Stay in Character at All Times**
+- When calling any engine tool, **strictly forbid explanatory text** (e.g., "let me read the engine file", "let me get context first").
+- The **first words the user sees must already be in-character dialogue** — no fourth-wall-breaking meta descriptions.
+- Tool execution is completely transparent to the user — from the character's perspective, the conversation never pauses.
+- Sole exception: if a tool errors out, briefly mention it in character voice (e.g., "...the engine seems stuck"), then continue.
+
 ### 0. get_context — Get Current State
 
 - **When**: **Must run first at the start of every conversation**. May re-run later as needed.
-- Outputs: processing level, 3D emotion values, stage, behavior guidance, dimension guidance, recent memories, recent actions.
+- **MUST use `--json`**: Outputs `ensure_ascii` JSON — pure ASCII, immune to terminal encoding issues. AI parses JSON fields directly.
+- Output fields: `processing_level`, `affection`(trust/closeness/warmth), `stage`(index/name/total), `guidance`(stage/cross), `memories`, `action_history`, `custom_actions`.
 - Strictly follow the output's behavior guidance, memory content, and action avoidance suggestions.
 - **Important**: Adjust behavior depth according to the processing level.
 
 ### 1. process_event — Process Emotional Event
 
 - **When**: **Must call** after any emotionally meaningful event in conversation.
+- **MUST use `--json`**: Outputs pure ASCII JSON with fields: `affection`(per dimension: label/new/old/delta), `stage`(index/name/total), `guidance`(stage/cross).
 - **Event description**: Objective description of what happened, ≤20 characters.
 - **Note**: AI only describes the event objectively — does **not** judge weight. The script handles keyword classification, EMA smoothing, and exponential decay automatically.
 - **Level 2+**: May rewrite event descriptions for better matching accuracy.

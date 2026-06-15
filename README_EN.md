@@ -62,7 +62,7 @@ roleplay-engine/
 ├── ENGINE_EN.md           ← Engine rules (English)
 ├── README.md              ← This file (English)
 ├── README_EN.md           ← Chinese README
-├── CLAUDE.md              ← Role router (PRIVATE — gitignored)
+├── CLAUDE.md              ← Role router
 ├── CLAUDE.example.md      ← Router template (public)
 ├── tool/                  ← Universal engine scripts (public, role-agnostic)
 │   ├── process_event.py   ← Core: keyword match + EMA + decay
@@ -72,12 +72,9 @@ roleplay-engine/
 │   ├── record_action.py   ← Action logger (anti-repetition)
 │   └── add_custom_item.py ← User-saved custom actions/lines
 └── settings/              ← Role-specific
-    ├── character_profile.md          ← Character personality (PRIVATE — gitignored)
-    ├── character_profile.example.md  ← Mouri Ran personality example (public)
-    ├── character_config.json         ← Emotion model config (PRIVATE — gitignored)
-    ├── character_config.example.json ← Mouri Ran config example (public)
-    ├── state.json                    ← Runtime state (PRIVATE — gitignored)
-    └── state.example.json            ← Fresh state template (public)
+    ├── character_profile.md          ← Character personality
+    ├── character_config.json         ← Emotion model config
+    └── state.json                    ← Runtime state
 ```
 
 ---
@@ -129,19 +126,6 @@ Set `processing_level` in `character_config.json` (0–3):
 | **1** | Low | Standard: AI may add missing keywords |
 | **2** | Mid | Assisted: AI may rewrite events, propose weights |
 | **3** | High | Deep: AI freely analyzes semantics, questions rules |
-
-## Publishing to GitHub
-
-These files are role-private and gitignored:
-
-```gitignore
-CLAUDE.md
-settings/character_config.json
-settings/character_profile.md
-settings/state.json
-```
-
-Everything else is safe to publish. Example character uses **Mouri Ran** (毛利蘭) — a warm, kind character contrasting with the default cold-tsundere archetype, ideal for testing the engine across different personality types.
 
 ## Dependencies
 

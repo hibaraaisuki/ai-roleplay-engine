@@ -120,8 +120,33 @@ def gen_cross_guidance(affection, config):
     return tips
 
 
-def format_output(affection, old_affection, stage, stage_name, stage_guides, cross_tips):
-    """格式化输出"""
+def format_output_json(affection, old_affection, stage, stage_name, stage_guides, cross_tips, stages):
+    """JSON 输出 — ensure_ascii 确保跨编码兼容"""
+    dims = ["trust", "closeness", "warmth"]
+    dims_cn = ["信任", "亲近", "温度"]
+    affection_out = {}
+    for key, label in zip(dims, dims_cn):
+        new_val = round(affection[key])
+        old_val = round(old_affection[key])
+        affection_out[key] = {"label": label, "new": new_val, "old": old_val, "delta": new_val - old_val}
+
+    result = {
+        "affection": affection_out,
+        "stage": {
+            "index": stage,
+            "name": stage_name,
+            "total": len(stages)
+        },
+        "guidance": {
+            "stage": stage_guides.get(str(stage), ""),
+            "cross": cross_tips if cross_tips else ["维度均衡，按阶段默认指引即可"]
+        }
+    }
+    print(json.dumps(result, ensure_ascii=True, indent=2))
+
+
+def format_output_text(affection, old_affection, stage, stage_name, stage_guides, cross_tips):
+    """原始文本输出（保留向后兼容）"""
     dims = ["trust", "closeness", "warmth"]
     labels = ["信任", "亲近", "温度"]
 
@@ -145,11 +170,19 @@ def format_output(affection, old_affection, stage, stage_name, stage_guides, cro
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("用法: python process_event.py \"<事件描述文本>\"")
-        sys.exit(1)
+    args = sys.argv[1:]
+    use_json = False
+    text = None
 
-    text = sys.argv[1].strip()
+    for arg in args:
+        if arg == "--json":
+            use_json = True
+        elif text is None:
+            text = arg.strip()
+
+    if text is None:
+        print("用法: python process_event.py [--json] \"<事件描述文本>\"")
+        sys.exit(1)
 
     # 加载配置
     config = load_json(CONFIG_FILE)
@@ -202,7 +235,10 @@ def main():
     stage_name = stages[stage] if stage < len(stages) else stages[-1]
     cross_tips = gen_cross_guidance(state["affection"], config)
 
-    format_output(state["affection"], old_affection, stage, stage_name, stage_guides, cross_tips)
+    if use_json:
+        format_output_json(state["affection"], old_affection, stage, stage_name, stage_guides, cross_tips, stages)
+    else:
+        format_output_text(state["affection"], old_affection, stage, stage_name, stage_guides, cross_tips)
 
 
 if __name__ == "__main__":
