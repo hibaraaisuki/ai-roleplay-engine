@@ -51,7 +51,7 @@ echo '[...]' | python "{ENGINE_ROOT}/tool/batch.py"
 [
   {"op": "get_context"},
   {"op": "process_event", "event": "User fixed Haibara's lab equipment"},
-  {"op": "add_memory", "text": "User fixed the centrifuge"},
+  {"op": "add_memory", "text": "User fixed the centrifuge", "importance": 2},
   {"op": "record_action", "action": "Folded arms, nodded slightly"}
 ]
 ```
@@ -62,7 +62,7 @@ echo '[...]' | python "{ENGINE_ROOT}/tool/batch.py"
 |---|---|---|
 | `get_context` | none | Returns current context snapshot |
 | `process_event` | `event` | Event description (≤20 chars) |
-| `add_memory` | `text` | Short-term memory text |
+| `add_memory` | `text` | Memory text; optional `mem_type` (`"core"`/`"recent"`, default `"recent"`), `importance` (1-5, default 1) |
 | `record_action` | `action` | Action description |
 | `add_custom_item` | `item` | Custom action/line |
 | `add_preference` | `pref_type`, `content` | Type: `like` / `dislike` / `trigger` / `keyword` |
@@ -114,7 +114,7 @@ The AI must **proactively and automatically** invoke these tools. **Recommended:
 - **When**: Must run first at the start of every conversation. May re-run later.
 - Standalone: `python "{ENGINE_ROOT}/tool/get_context.py" --json`
 - Batch: `{"op": "get_context"}`
-- Output fields: `processing_level`, `affection`(trust/closeness/warmth), `stage`(index/name/total), `guidance`(stage/cross), `memories`, `action_history`, `custom_actions`.
+- Output fields: `processing_level`, `affection`(trust/closeness/warmth), `stage`(index/name/total), `guidance`(stage/cross), `core_memories`, `recent_memories`, `action_history`, `custom_actions`.
 - Strictly follow the output's behavior guidance, memory content, and action avoidance suggestions.
 
 ### 1. process_event — Process Emotional Event
@@ -134,12 +134,23 @@ The AI must **proactively and automatically** invoke these tools. **Recommended:
 - Batch: `{"op": "add_preference", "pref_type": "<type>", "content": "<content>"}`
 - Auto-appends to `character_config.json` and generates event keyword rules.
 
-### 3. add_memory(text)
+### 3. add_memory(text, mem_type, importance) — Two-Tier Memory
 
 - **When**: Immediately call when something worth remembering happens.
-- Standalone: `python "{ENGINE_ROOT}/tool/add_memory.py" "<text>"`
-- Batch: `{"op": "add_memory", "text": "<text>"}`
+- Standalone: `python "{ENGINE_ROOT}/tool/add_memory.py" [--core] [--importance N] "<text>"`
+- Batch: `{"op": "add_memory", "text": "<text>", "mem_type": "recent", "importance": 1}`
 - Memory content: concise summary, ≤20 chars.
+
+**Two-tier storage:**
+- `recent` (default): Short-term sliding memory, capped at `max_recent_memory` (default 50). When full, evicts by **importance** (lowest first), tie-breaking by time (oldest first).
+- `core`: Permanent core memory, capped at `max_core_memory` (default 20). For key events (confessions, major conflicts, identity reveals). When full, also evicts by importance.
+- `importance`: Integer 1-5, default recent=1, core=3. Items scored 4-5 are virtually immune to automatic eviction.
+
+**Usage tips:**
+- Daily interactions → `recent` + importance 1-2, let natural churn handle it
+- Worth keeping long-term → `recent` + importance 3-4
+- Critical turning points → `core` + importance 4-5 (≤3 per day)
+- `get_context` returns all `core_memories` + last 10 `recent_memories`
 
 ### 4. record_action(action)
 

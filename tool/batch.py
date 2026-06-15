@@ -141,35 +141,97 @@ def gen_cross_guidance(affection, config):
 
 
 # ============================================================
-#  默认状态构造（v2 格式，从 config baselines 初始化）
+#  记忆淘汰逻辑
+# ============================================================
+
+def evict_lowest(memory_list, max_len):
+    """移除最低重要度的条目，同分优先移除最早的（保留插入顺序）"""
+    while len(memory_list) > max_len:
+        min_imp = min(m.get("importance", 1) for m in memory_list)
+        # 在最低重要度中找最早出现的
+        for i, m in enumerate(memory_list):
+            if m.get("importance", 1) == min_imp:
+                del memory_list[i]
+                break
+
+
+def migrate_short_memory(state):
+    """将旧版 short_memory（字符串数组）迁移为 recent_memory（对象数组）"""
+    old = state.pop("short_memory", None)
+    if old is None:
+        return
+    now = datetime.now(TZ).isoformat()
+    migrated = []
+    for m in old:
+        if isinstance(m, dict):
+            # 已经是对象格式，补齐缺失字段
+            m.setdefault("importance", 1)
+            m.setdefault("timestamp", now)
+            migrated.append(m)
+        elif isinstance(m, str):
+            migrated.append({"text": m, "importance": 1, "timestamp": now})
+    state["recent_memory"] = migrated
+
+
+# ============================================================
+#  默认状态构造（v3 格式：两段式记忆）
 # ============================================================
 
 def make_default_state(config):
-    """从 character_config.json 的维度基线创建 v2 格式默认状态"""
+    """从 character_config.json 的维度基线创建 v3 格式默认状态"""
     dims = config["dimensions"]
+    now = datetime.now(TZ).isoformat()
     return {
-        "version": 2,
+        "version": 3,
         "affection": {k: v["baseline"] for k, v in dims.items()},
-        "short_memory": [],
+        "core_memory": [],
+        "recent_memory": [],
         "action_history": [],
         "custom_actions": [],
-        "max_memory": 100,
+        "max_core_memory": 20,
+        "max_recent_memory": 50,
         "max_action_history": 100,
         "max_custom_actions": 100,
     }
 
 
 def ensure_state(state, dims):
-    """修补 state 中缺失的 key，保证后续处理不报错"""
+    """修补 state 中缺失的 key，自动迁移旧格式"""
+    # 迁移旧版 short_memory → recent_memory
+    if "short_memory" in state and "recent_memory" not in state:
+        migrate_short_memory(state)
+
+    # 版本
+    if "version" not in state:
+        state["version"] = 3 if "recent_memory" in state else 2
+
+    # 情感维度
     if "affection" not in state:
         state["affection"] = {k: v["baseline"] for k, v in dims.items()}
-        state["version"] = 2
+        state["version"] = max(state.get("version", 2), 3)
     for k in dims:
         state["affection"].setdefault(k, dims[k]["baseline"])
     state["affection"].setdefault("last_update", None)
-    for k in ("max_memory", "max_action_history", "max_custom_actions"):
-        state.setdefault(k, 100)
-    for k in ("short_memory", "action_history", "custom_actions"):
+
+    # 两段式记忆
+    for k in ("core_memory", "recent_memory"):
+        state.setdefault(k, [])
+
+    # 旧版 max_memory → 新版分拆
+    if "max_memory" in state and "max_recent_memory" not in state:
+        old_max = state.pop("max_memory")
+        state["max_recent_memory"] = min(old_max, 50)
+        if "max_core_memory" not in state:
+            state["max_core_memory"] = 20
+
+    # 容量上限默认值
+    state.setdefault("max_core_memory", 20)
+    state.setdefault("max_recent_memory", 50)
+    state.setdefault("max_action_history", 100)
+    state.setdefault("max_custom_actions", 100)
+
+    # 其他列表
+    for k in ("action_history", "custom_actions"):
         state.setdefault(k, [])
 
 
@@ -194,6 +256,10 @@ def handle_get_context(state, config):
     level = config.get("processing_level", 1)
     level_guide = config.get("_processing_level_guide", {}).get(str(level), "")
 
+    # 返回两段式记忆（core 全部，recent 最近 10 条）
+    core = state.get("core_memory", [])
+    recent = state.get("recent_memory", [])[-10:]
+
     return {
         "processing_level": level,
         "processing_level_guide": level_guide,
@@ -211,7 +277,14 @@ def handle_get_context(state, config):
             "stage": stage_guides.get(str(stage_idx), ""),
             "cross": cross,
         },
-        "memories": state.get("short_memory", [])[-10:],
+        "core_memories": [
+            {"text": m["text"], "importance": m.get("importance", 1)}
+            for m in core
+        ],
+        "recent_memories": [
+            {"text": m["text"], "importance": m.get("importance", 1)}
+            for m in recent
+        ],
         "action_history": state.get("action_history", [])[-10:],
         "custom_actions": state.get("custom_actions", []),
     }
@@ -268,16 +341,47 @@ def handle_process_event(state, config, event_text):
     }
 
 
-def handle_add_memory(state, text):
-    """追加短期记忆"""
+def handle_add_memory(state, text, mem_type="recent", importance=1):
+    """追加记忆 — 支持两段式存储（core/recent）和重要性评分（1-5）
+
+    mem_type: "core" → 核心永久记忆（上限 max_core_memory, 默认 20）
+              "recent" → 短期滑动记忆（上限 max_recent_memory, 默认 50）
+    importance: 1-5，默认 1。满了按重要性择优淘汰，同分按时间旧→新淘汰。
+    """
     if not text or not text.strip():
         raise ValueError("记忆文本为空")
     text = text.strip()
-    state["short_memory"].append(text)
-    max_len = state.get("max_memory", 100)
-    if len(state["short_memory"]) > max_len:
-        state["short_memory"] = state["short_memory"][-max_len:]
-    return {"recorded": text, "memory_count": len(state["short_memory"])}
+
+    # 限幅 importance
+    importance = max(1, min(5, int(importance)))
+
+    now = datetime.now(TZ).isoformat()
+    entry = {"text": text, "importance": importance, "timestamp": now}
+
+    if mem_type == "core":
+        target = state.setdefault("core_memory", [])
+        target.append(entry)
+        max_len = state.get("max_core_memory", 20)
+        if len(target) > max_len:
+            evict_lowest(target, max_len)
+        return {
+            "recorded": text,
+            "type": "core",
+            "importance": importance,
+            "core_count": len(target),
+        }
+    else:
+        target = state.setdefault("recent_memory", [])
+        target.append(entry)
+        max_len = state.get("max_recent_memory", 50)
+        if len(target) > max_len:
+            evict_lowest(target, max_len)
+        return {
+            "recorded": text,
+            "type": "recent",
+            "importance": importance,
+            "recent_count": len(target),
+        }
 
 
 def handle_record_action(state, action):
@@ -504,16 +608,22 @@ def main():
             style = HANDLER_STYLE[op_type]
 
             if style == "state_only":
-                # add_memory / record_action / add_custom_item
-                arg_map = {
-                    "add_memory": ("text",),
-                    "record_action": ("action",),
-                    "add_custom_item": ("item",),
-                }
-                field = arg_map[op_type][0]
-                if field not in op or not op[field]:
-                    raise ValueError(f"缺少必填字段: {field}")
-                data = handler(state, op[field])
+                if op_type == "add_memory":
+                    if "text" not in op or not op.get("text"):
+                        raise ValueError("缺少必填字段: text")
+                    mem_type = op.get("mem_type", "recent")
+                    if mem_type not in ("core", "recent"):
+                        raise ValueError("mem_type 只能是 'core' 或 'recent'")
+                    importance = int(op.get("importance", 1))
+                    data = handler(state, op["text"], mem_type, importance)
+                elif op_type == "record_action":
+                    if "action" not in op or not op.get("action"):
+                        raise ValueError("缺少必填字段: action")
+                    data = handler(state, op["action"])
+                elif op_type == "add_custom_item":
+                    if "item" not in op or not op.get("item"):
+                        raise ValueError("缺少必填字段: item")
+                    data = handler(state, op["item"])
 
             elif style == "state_config":
                 # get_context / process_event

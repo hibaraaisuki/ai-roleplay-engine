@@ -27,6 +27,7 @@ If you have already deployed `Claude` and are using it for many tasks, why not m
 - **Exponential Decay**: Emotions naturally cool over time without interaction (independent half-life per dimension)
 - **Batch Operations**: `batch.py` merges multiple script calls per turn into one — state.json read/written only once
 - **AI Self-Improvement**: AI discovers character preferences during conversation, writes config automatically
+- **Two-Tier Memory**: Core permanent memory + recent sliding memory with importance-based eviction
 - **4 Processing Levels**: From zero-token pure-tool to deep-think mode
 - **Public/Private Separation**: Engine is public, character is private — switch roles by swapping two files in `settings/`
 - **Multilingual**: Engine docs + README in Chinese & English

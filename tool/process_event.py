@@ -198,17 +198,29 @@ def main():
     if os.path.exists(STATE_FILE):
         state = load_json(STATE_FILE)
     else:
-        state = {"affection": {k: v["baseline"] for k, v in dims.items()},
-                 "short_memory": [], "action_history": [], "custom_actions": [],
-                 "max_memory": 10, "max_action_history": 30, "max_custom_actions": 10, "version": 2}
+        state = {
+            "version": 3,
+            "affection": {k: v["baseline"] for k, v in dims.items()},
+            "core_memory": [],
+            "recent_memory": [],
+            "action_history": [],
+            "custom_actions": [],
+            "max_core_memory": 20,
+            "max_recent_memory": 50,
+            "max_action_history": 100,
+            "max_custom_actions": 100,
+        }
     if "affection" not in state:
         state["affection"] = {k: v["baseline"] for k, v in dims.items()}
-        state["version"] = 2
+        state["version"] = max(state.get("version", 3), 3)
     for k in dims:
         state["affection"].setdefault(k, dims[k]["baseline"])
     state["affection"].setdefault("last_update", None)
-    for k in ("max_memory", "max_action_history", "max_custom_actions"):
-        state.setdefault(k, 10)
+    for k in ("core_memory", "recent_memory"):
+        state.setdefault(k, [])
+    for k, v in [("max_core_memory", 20), ("max_recent_memory", 50),
+                  ("max_action_history", 100), ("max_custom_actions", 100)]:
+        state.setdefault(k, v)
 
     old_affection = {k: state["affection"][k] for k in dims}
 

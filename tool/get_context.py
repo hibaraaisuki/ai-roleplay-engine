@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""读取角色状态上下文并格式化输出（v2 通用引擎版）"""
+"""读取角色状态上下文并格式化输出（v3 两段式记忆版）"""
 import json
 import os
 import sys
@@ -68,9 +68,45 @@ def gen_cross_guidance(affection, config):
     return tips
 
 
+def get_memories_json(state):
+    """提取两段式记忆（兼容旧版 short_memory）"""
+    # 核心记忆 — 返回全部
+    core = state.get("core_memory", [])
+    core_out = [{"text": m["text"], "importance": m.get("importance", 1)} for m in core]
+
+    # 近期记忆 — 最近 10 条
+    if "recent_memory" in state:
+        recent = state["recent_memory"][-10:]
+        recent_out = [{"text": m["text"], "importance": m.get("importance", 1)} for m in recent]
+    elif "short_memory" in state:
+        # 旧格式兼容
+        old = state["short_memory"][-10:]
+        recent_out = [{"text": m, "importance": 1} if isinstance(m, str) else
+                       {"text": m["text"], "importance": m.get("importance", 1)} for m in old]
+    else:
+        recent_out = []
+
+    return core_out, recent_out
+
+
+def get_memories_text(state):
+    """提取记忆文本列表（兼容旧版）"""
+    core = state.get("core_memory", [])
+    if "recent_memory" in state:
+        recent = state["recent_memory"][-8:]
+        all_memories = [m["text"] for m in core] + [m["text"] for m in recent]
+    elif "short_memory" in state:
+        all_memories = state["short_memory"][-8:]
+    else:
+        all_memories = []
+    return all_memories
+
+
 def output_json(state, config, stage, stage_name, cross, level, level_guide):
     """JSON 输出 — ensure_ascii 确保跨编码兼容"""
     aff = state["affection"]
+    core_mem, recent_mem = get_memories_json(state)
+
     result = {
         "processing_level": level,
         "processing_level_guide": level_guide,
@@ -88,7 +124,8 @@ def output_json(state, config, stage, stage_name, cross, level, level_guide):
             "stage": config.get("stage_guides", {}).get(str(stage), ""),
             "cross": cross
         },
-        "memories": state.get("short_memory", [])[-10:],
+        "core_memories": core_mem,
+        "recent_memories": recent_mem,
         "action_history": state.get("action_history", [])[-10:],
         "custom_actions": state.get("custom_actions", [])
     }
@@ -101,7 +138,7 @@ def output_text(affection, stage, stage_name, level, level_guide, guide, cross,
     lines = []
     lines.append(f"处理档位: Level {level} — {level_guide}")
     t, c, w = round(affection["trust"]), round(affection["closeness"]), round(affection["warmth"])
-    lines.append(f"信任:{t}  亲近:{c}  温度:{w}  阶段:{stage_name}（{stage + 1}/{len(customs) if False else 4}）")
+    lines.append(f"信任:{t}  亲近:{c}  温度:{w}  阶段:{stage_name}（{stage + 1}/4）")
     lines.append(f"行为指引: {guide}")
     if cross:
         lines.append("维度指引:")
@@ -110,7 +147,12 @@ def output_text(affection, stage, stage_name, level, level_guide, guide, cross,
     if memories:
         lines.append("近期发生的事：")
         for m in memories[-8:]:
-            lines.append(f"  - {m}")
+            if isinstance(m, dict):
+                imp = m.get("importance", 1)
+                star = "★" * imp + "☆" * (5 - imp)
+                lines.append(f"  - [{star}] {m['text']}")
+            else:
+                lines.append(f"  - {m}")
     if customs:
         lines.append("用户保存的专属动作/台词（可轮换）：")
         for ci in customs:
@@ -134,9 +176,18 @@ def main():
         state = load_json(STATE_FILE)
     else:
         dims = config["dimensions"]
-        state = {"affection": {k: v["baseline"] for k, v in dims.items()},
-                 "short_memory": [], "action_history": [], "custom_actions": [],
-                 "max_memory": 10, "max_action_history": 30, "max_custom_actions": 10}
+        state = {
+            "version": 3,
+            "affection": {k: v["baseline"] for k, v in dims.items()},
+            "core_memory": [],
+            "recent_memory": [],
+            "action_history": [],
+            "custom_actions": [],
+            "max_core_memory": 20,
+            "max_recent_memory": 50,
+            "max_action_history": 100,
+            "max_custom_actions": 100,
+        }
 
     aff = state["affection"]
     stage = calc_stage(aff, stage_mapping, thresholds)
@@ -149,7 +200,7 @@ def main():
     if use_json:
         output_json(state, config, stage, stage_name, cross, level, level_guide)
     else:
-        memories = state.get("short_memory", [])
+        memories = get_memories_text(state)
         customs = state.get("custom_actions", [])
         recent = state.get("action_history", [])[-10:]
         output_text(aff, stage, stage_name, level, level_guide, guide, cross,
