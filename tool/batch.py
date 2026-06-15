@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """批量情感引擎操作 — 单次读写 state.json，所有操作在内存中顺序执行后统一写回。
 
-用法:
-  echo '[...]' | python batch.py
+用法（推荐 --input 文件传参，避免 shell 编码损坏）:
   python batch.py --input <json文件路径>
+
+备选（仅纯 ASCII 安全）:
+  echo '[...]' | python batch.py
 
 输出: ensure_ascii 纯 ASCII JSON 数组，每项对应一个操作的结果。
 """

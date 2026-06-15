@@ -10,7 +10,7 @@
 
 | Purpose | Command |
 |---------|---------|
-| **Batch ops (recommended)** | `echo '[...]' \| python "{ENGINE_ROOT}/tool/batch.py"` |
+| **Batch ops (recommended)** | `python "{ENGINE_ROOT}/tool/batch.py" --input <JSON file path>` |
 | Get context | `python "{ENGINE_ROOT}/tool/get_context.py" --json` |
 | Process event | `python "{ENGINE_ROOT}/tool/process_event.py" --json "<event>"` |
 | Add preference | `python "{ENGINE_ROOT}/tool/add_preference.py" <like\|dislike\|trigger\|keyword> "<content>"` |
@@ -21,6 +21,7 @@
 - **AI only calls scripts with arguments** — never directly edits `state.json` or `character_config.json`.
 - **`get_context` and `process_event` MUST use `--json` when called standalone**: outputs pure ASCII JSON, bypassing terminal encoding issues.
 - **batch.py always outputs JSON** — no `--json` flag needed.
+- **⚠️ `echo ... | python batch.py` piping corrupts CJK characters via shell encoding, causing state.json truncation (confirmed multiple times). NEVER use it. Always use `--input` with a temp file.**
 
 ---
 
@@ -28,16 +29,20 @@
 
 Use one `batch.py` call per turn instead of 3-4 standalone calls. Reduces process overhead; state.json read/written only once.
 
+> **⚠️ CRITICAL: On Windows, `echo` piping destroys CJK character encoding, causing surrogate pairs in `json.dump` output which truncates state.json. This has corrupted state.json multiple times. ALWAYS use `--input` with a temp file. NEVER use `echo ... |` piping.**
+
 ### Command
 
-```
-echo '[...]' | python "{ENGINE_ROOT}/tool/batch.py"
-```
-
-For CJK text with special characters, use file input:
+**Primary — file input (safe, no encoding risk):**
 
 ```
 python "{ENGINE_ROOT}/tool/batch.py" --input <JSON file path>
+```
+
+**Fallback — pipe only when the batch is pure ASCII (e.g., `get_context` alone):**
+
+```
+echo '[...]' | python "{ENGINE_ROOT}/tool/batch.py"
 ```
 
 ### Typical Turn
@@ -98,6 +103,11 @@ The AI must **proactively and automatically** invoke these tools. **Recommended:
 - When calling engine tools, **strictly forbid explanatory text**. The first words the user sees must already be in-character dialogue.
 - Tool execution is transparent to the user — from the character's perspective, the conversation never pauses.
 - Sole exception: if a tool errors out, briefly mention it in character voice (e.g., "...the engine seems stuck"), then continue.
+
+**🔴 Hard Rule: batch.py MUST use `--input` file input**
+- Write the JSON ops array to a temp file, then call `python "{ENGINE_ROOT}/tool/batch.py" --input <file>`.
+- **Forbidden**: `echo '[...]' | python batch.py` piping — the shell will corrupt CJK character encoding, truncating state.json.
+- Pure ASCII batches (e.g., single `get_context`) may use piping as an exception, but mixing styles is not recommended.
 
 ### 0. get_context — Get Current State
 
