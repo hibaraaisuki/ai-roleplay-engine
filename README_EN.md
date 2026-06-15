@@ -3,6 +3,8 @@
 > A lightweight, zero-server AI role-play framework. 7 Python scripts + JSON configs = a complete emotion-tracking engine.
 >
 > **Core philosophy: Scripts handle the numbers, AI handles the performance.**
+>
+> Runs inside Claude Code and other AI coding assistants — the AI reads ENGINE.md for operational rules, calls Python scripts via CLI, and reads/writes local JSON files. The engine itself requires no server, no API key, and no network dependency.
 
 [中文](README.md)
 
@@ -145,7 +147,55 @@ Event deltas don't apply directly at full magnitude — they accumulate graduall
 
 ---
 
-## Processing Levels
+## Live Demo
+
+Using the "Mouri Ran" character — watch how the engine drives emotional change across a few conversation turns.
+
+> Start: trust 55 / closeness 40 / warmth 30 — **First Meeting** stage
+
+```
+User: "Hi! I just moved in next door. Nice to meet you～"
+
+Event: First-time greeting
+Match: Daily interaction → trust+0, closeness+0.35, warmth+0.35  (×α=0.35)
+─────────────────────────────────────────────────
+trust 55 → 55    closeness 40 → 40    warmth 30 → 30
+Stage: First Meeting — "Polite but keeps distance, uses formal speech, smile is courteous and restrained"
+
+Ran: (bows slightly, with a courteous, restrained smile)
+     "Hello, I'm Mouri Ran. Nice to meet you. Let me know if you ever need anything."
+```
+
+```
+User: "I heard you're amazing at making bento? I tried making one today — here, try it."
+
+Event: User shares homemade food with Ran
+Match: Cooking / sharing food → trust+0, closeness+1.05, warmth+1.4  (×α=0.35)
+─────────────────────────────────────────────────
+trust 56 → 56    closeness 43 → 44    warmth 33 → 34
+Stage: Friend — "Relaxed natural tone, chats about daily life, genuine smile"
+
+Ran: (eyes light up, accepting the bento box with both hands)
+     "Wow～ it smells amazing! You're pretty good at this. I'll make one for you next time — my treat!"
+```
+
+```
+User: "Don't worry. I'll protect you. No one's going to hurt you."
+
+Event: User firmly promises to protect Ran
+Match: Being protected → trust+0.7, closeness+2.1, warmth+1.75  (×α=0.35)
+─────────────────────────────────────────────────
+trust 57 → 58    closeness 46 → 48    warmth 35 → 37
+Stage: Good Friend — "Actively invites to meals or outings, prepares bento for them, care shows openly"
+
+Ran: (blushes slightly, then breaks into a warm smile)
+     "Thank you... I'm really lucky to have met you. Hey, are you free this weekend? Let's go to the fireworks festival together — I'll make bento for us."
+```
+
+> From a polite smile to sharing bento to standing side by side — **same engine, three keyword matches, three completely different versions of Ran.**
+
+---
+
 
 Set `processing_level` in `character_config.json` (0-3) to control AI analysis depth:
 
