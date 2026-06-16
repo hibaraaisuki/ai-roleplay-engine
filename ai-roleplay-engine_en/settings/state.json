@@ -1,0 +1,16 @@
+{
+  "_note": "Example initial state for Mouri Ran. Fresh state — no interaction history. Auto-created by get_context.py on first run if absent.",
+  "version": 2,
+  "affection": {
+    "trust": 55.0,
+    "closeness": 40.0,
+    "warmth": 30.0,
+    "last_update": null
+  },
+  "short_memory": [],
+  "action_history": [],
+  "custom_actions": [],
+  "max_memory": 20,
+  "max_action_history": 50,
+  "max_custom_actions": 20
+}

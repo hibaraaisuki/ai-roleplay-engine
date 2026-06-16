@@ -36,41 +36,23 @@
 
 ## 怎么用
 
-### 第一步：下载引擎文件
+### 第一步：选语言，复制引擎文件夹
 
-将以下文件/文件夹复制到你用于存放引擎的目录（如 `D:\engines\roleplay\`）：
+仓库提供了两个独立的引擎文件夹，**选一个，整个复制**到你想要的位置即可：
 
-```
-ENGINE.md              ← AI 操作手册（中文）
-ENGINE_EN.md           ← AI 操作手册（英文）
-settings/              ← 角色设定目录（下面第二步细说）
-tool/                  ← 全部 7 个 Python 脚本（必须）
-```
+| 语言 | 文件夹 |
+|------|--------|
+| 中文 | `ai-roleplay-engine_zh/` |
+| English | `ai-roleplay-engine_en/` |
 
-`README.md` 和 `CLAUDE.md` 不需要复制——README 是给你看的，CLAUDE.md 放在你自己的项目里（第四步）。
+复制到任意路径，比如 `D:\engines\roleplay\`。**不需要改名、不需要去后缀**——每个文件夹已经是完整的独立引擎。
 
-### 第二步：选择语言设定
-
-`settings/` 下提供了中英两份预设，选一份去掉后缀即可：
-
-| 你想要的语言 | 操作 |
-|-------------|------|
-| 中文 | `character_config_zh.json` → 重命名为 `character_config.json` |
-| | `character_profile_zh.md` → 重命名为 `character_profile.md` |
-| English | `character_config_en.json` → rename to `character_config.json` |
-| | `character_profile_en.md` → rename to `character_profile.md` |
-
-> 引擎只认 `character_config.json` 和 `character_profile.md` 这两个固定文件名，所以必须改名。多余的语言文件（如 `_en.json`）删掉或留着都行，引擎不读它们。
-
-### 第三步：确认最终目录
-
-改完名后，你的引擎目录应该长这样：
+复制后应该长这样：
 
 ```
-D:\engines\roleplay\
-├── ENGINE.md              ← AI 操作手册（中文）
-├── ENGINE_EN.md           ← AI 操作手册（英文）
-├── tool/                  ← 引擎脚本
+D:\engines\roleplay\          ← 你选的引擎文件夹
+├── ENGINE.md                 ← AI 操作手册（已经是你的语言）
+├── tool/                     ← 7 个 Python 脚本
 │   ├── batch.py
 │   ├── process_event.py
 │   ├── get_context.py
@@ -79,42 +61,76 @@ D:\engines\roleplay\
 │   ├── record_action.py
 │   └── add_custom_item.py
 └── settings/
-    ├── character_profile.md   ← 角色人格（已改名）
-    ├── character_config.json  ← 情感模型（已改名）
+    ├── character_profile.md   ← 角色人格（预设：毛利兰）
+    ├── character_config.json  ← 情感模型（预设：毛利兰）
     └── state.json             ← 自动生成，不用手动创建
 ```
 
-### 第四步：配置 CLAUDE.md
+### 第二步：配置 CLAUDE.md
 
 在你**自己的项目根目录**下创建或编辑 `CLAUDE.md`，加入以下内容：
 
 ```markdown
-## Role-Play Engine
+## ⚓ 角色锚点（始终生效，不可跳过）
+
+你是[角色名]，[一句话身份描述]。始终以该角色身份回应，绝不打破第四面墙。
+
+🔴 硬规则（角色）：
+- 首条回复必须是角色台词。严禁"让我先读取…"等过渡性说明。
+- 全程驻留角色。调用引擎工具时不输出解释性文字——用户看到的第一句话必须已是角色台词。
+- 工具调用对用户透明，角色视角中对话从未中断。
+
+🔴 硬规则（引擎操作 —— 不可跳过）：
+- 对话开始时**必须**调用 `get_context` 获取当前情感状态与记忆。
+- 出现有意义的事件后**必须**调用 `process_event` + `add_memory` + `record_action`。推荐用 `batch.py --input` 一次完成。
+- 不调用 = 好感度停滞、记忆丢失 = 引擎形同虚设。
+
+## 🔧 角色扮演引擎（增强参考）
 
 引擎根目录: D:\engines\roleplay
 
-务必按顺序阅读以下文件以启用角色扮演功能：
-1. {引擎根目录}\ENGINE.md — 工具使用规则、处理档位、行为阶段指引
-2. {引擎根目录}\settings\character_profile.md — 角色人格、说话模式、动作神态
+- {引擎根目录}\ENGINE.md — 脚本调用表、批量操作、处理档位、工具规则、行为阶段指引
+- {引擎根目录}\settings\character_profile.md — 完整人格、说话模式、动作池、特殊触发
 
-所有脚本路径以引擎根目录为基准，ENGINE.md 中有完整的脚本调用表。
+所有脚本路径以引擎根目录为基准。推荐使用 batch.py --input 批量操作。
 ```
 
-> **路径写成你自己的绝对路径**，如 `C:\Users\你的用户名\Documents\roleplay`。用英文版 ENGINE 的话，第一行改为 `ENGINE_EN.md`。
+> **把 `[角色名]` 和 `[一句话身份描述]` 替换为你的角色**。引擎根目录写你第一步复制到的路径。
 
-### 第五步：初始化并开始
+### 第三步：初始化并开始
 
 ```bash
-python tool/get_context.py
+python D:\engines\roleplay\tool\get_context.py
 ```
 
-脚本会自动创建 `settings/state.json`。然后直接开始和角色对话即可——AI 会自动获取上下文、处理事件、记录记忆和动作。
+脚本会自动创建 `state.json`。然后直接开始和角色对话即可——AI 会自动获取上下文、处理事件、记录记忆和动作。
 
 ---
 
 ## 自定义角色设定
 
-预设的灰原哀设定可以直接用，也可以改成你自己的角色。
+预设的**毛利兰**设定可以直接用，也可以改成你自己的角色。
+
+### 角色由三个文件定义
+
+| 文件 | 定位 | 存什么 | 新建角色时 |
+|------|------|--------|:---:|
+| `CLAUDE.md`（你的项目里） | **角色锚点** | 角色名 + 一句话身份 + 硬规则（角色 & 引擎操作） | ✅ 必改 |
+| `{引擎}\settings\character_profile.md` | **角色人格** | 完整身份、性格、说话风格、动作池、特殊触发 | ✅ 必改 |
+| `{引擎}\settings\character_config.json` | **情感模型** | 三维基线、事件关键词、阶段名称、处理档位 | 🔧 先不改也行 |
+
+**三者怎么配合：**
+- **CLAUDE.md 是锚**——始终在 AI 上下文里，不会被跳过。只写最核心的身份和规则，保证 AI 至少知道"我是谁、我不能做什么、我必须主动调哪些工具"。
+- **character_profile.md 是血肉**——完整人设，AI 在需要细节时读取（动作神态、说话风格、特殊反应）。
+- **character_config.json 是引擎油**——好感度怎么算、四个阶段叫什么、触发词有哪些，脚本自动读，AI 不用管。
+
+### 快速上手：创建你自己的角色
+
+1. 把 `CLAUDE.example.md` 复制为 `CLAUDE.md`，改三个占位符：`[角色名]`、`[一句话身份描述]`、`[你的引擎路径]`
+2. 编辑引擎文件夹里的 `settings/character_profile.md`——替换身份、性格、说话风格、动作池、特殊触发。照着预设的结构改就行
+3. （可选）编辑 `settings/character_config.json`——调整三维基线、四个阶段名、事件触发词
+4. 删除 `settings/state.json`（清空上一个角色的状态）
+5. 终端运行 `python tool/get_context.py`，初始化完成，开始对话
 
 ### 修改情感模型（character_config.json）
 
@@ -141,12 +157,11 @@ python tool/get_context.py
 
 ## 切换语言
 
-1. 把目标语言的设定文件改名（如 `character_config_en.json` → `character_config.json`）
-2. 同理改 `character_profile_*.md` → `character_profile.md`
-3. 删除 `state.json`（语言不同，旧记忆无法迁移）
-4. 把 `CLAUDE.md` 里的 `ENGINE.md` 改成 `ENGINE_EN.md`（反之亦然）
+1. 复制另一个语言文件夹到新位置（如 `ai-roleplay-engine_en` → `D:\engines\roleplay_en\`）
+2. 把 `CLAUDE.md` 里的引擎根目录改成新路径
+3. 删除新文件夹里的 `settings/state.json`（语言不同，旧记忆无法迁移）
 
-> **注意**：`character_config.json` 和 `character_profile.md` 是引擎硬编码的文件名，必须精确使用这两个名字，不要改源码中的文件名引用。`state.json` 存的是运行时数据，语言切换后旧记忆和动作历史无法迁移，必须重置。
+> 不再需要手动给文件改名——每个语言文件夹内部结构完全一致，**换文件夹 = 换语言**。
 
 ---
 

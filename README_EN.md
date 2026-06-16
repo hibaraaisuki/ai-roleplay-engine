@@ -36,41 +36,23 @@ If you have already deployed `Claude` and are using it for many tasks, why not m
 
 ## How to Use
 
-### Step 1: Download Engine Files
+### Step 1: Choose Language, Copy Engine Folder
 
-Copy these files/folders to the directory where you want to keep the engine (e.g., `D:\engines\roleplay\`):
+The repo provides two independent engine folders. **Pick one, copy the entire folder** to wherever you want:
 
-```
-tool/                  ← All 7 Python scripts (required)
-ENGINE.md              ← AI operations manual (Chinese)
-ENGINE_EN.md           ← AI operations manual (English)
-settings/              ← Character config directory (see Step 2)
-```
+| Language | Folder |
+|----------|--------|
+| 中文 | `ai-roleplay-engine_zh/` |
+| English | `ai-roleplay-engine_en/` |
 
-You don't need to copy `README.md` or `CLAUDE.md` — README is for human reference, and CLAUDE.md goes in your own project (Step 4).
+Copy it anywhere, e.g. `D:\engines\roleplay\`. **No renaming, no suffix removal** — each folder is already a complete standalone engine.
 
-### Step 2: Choose Language & Rename Settings
-
-`settings/` includes pre-written configs in Chinese and English. Pick one and remove the suffix:
-
-| Desired language | Action |
-|------------------|--------|
-| 中文 | `character_config_zh.json` → rename to `character_config.json` |
-| | `character_profile_zh.md` → rename to `character_profile.md` |
-| English | `character_config_en.json` → rename to `character_config.json` |
-| | `character_profile_en.md` → rename to `character_profile.md` |
-
-> The engine only recognizes the exact filenames `character_config.json` and `character_profile.md`. You must rename — don't modify the filename references in the engine source. Extra language files (e.g., `_zh.json`) can be kept or deleted, the engine ignores them.
-
-### Step 3: Verify Directory Structure
-
-After renaming, your engine directory should look like this:
+After copying, it should look like this:
 
 ```
-D:\engines\roleplay\
-├── ENGINE.md              ← AI operations manual (Chinese)
-├── ENGINE_EN.md           ← AI operations manual (English)
-├── tool/                  ← Engine scripts
+D:\engines\roleplay\          ← your chosen engine folder
+├── ENGINE.md                 ← AI operations manual (already in your language)
+├── tool/                     ← 7 Python scripts
 │   ├── batch.py
 │   ├── process_event.py
 │   ├── get_context.py
@@ -79,42 +61,76 @@ D:\engines\roleplay\
 │   ├── record_action.py
 │   └── add_custom_item.py
 └── settings/
-    ├── character_profile.md   ← Character personality (renamed)
-    ├── character_config.json  ← Emotion model (renamed)
+    ├── character_profile.md   ← Character personality (preset: Mouri Ran)
+    ├── character_config.json  ← Emotion model (preset: Mouri Ran)
     └── state.json             ← Auto-generated — no need to create manually
 ```
 
-### Step 4: Configure CLAUDE.md
+### Step 2: Configure CLAUDE.md
 
 In **your own project's root directory**, create or edit `CLAUDE.md` and add:
 
 ```markdown
-## Role-Play Engine
+## ⚓ Character Anchor (always active, cannot be skipped)
+
+You are [Character Name], [one-line identity description]. Always respond as this character. Never break the fourth wall.
+
+🔴 Hard Rules (Role):
+- First reply MUST be in-character dialogue. NEVER output transitional text like "Let me first read..."
+- Stay in character at all times. When calling engine tools, the first words the user sees must be in-character.
+- Tool execution is transparent to the user — the conversation never pauses from the character's perspective.
+
+🔴 Hard Rules (Engine Ops — DO NOT SKIP):
+- At conversation start, you **MUST** call `get_context` to load current emotional state and memories.
+- After any meaningful event, you **MUST** call `process_event` + `add_memory` + `record_action`. Use `batch.py --input` to do it in one call.
+- Skip these = affection values freeze, memories lost = the engine is dead weight.
+
+## 🔧 Role-Play Engine (Enhanced Reference)
 
 Engine root: D:\engines\roleplay
 
-Read in this order to enable role-play functionality:
-1. {ENGINE_ROOT}\ENGINE.md — Tool usage rules, processing levels, stage behavior guide
-2. {ENGINE_ROOT}\settings\character_profile.md — Character personality, speech patterns, mannerisms
+- {ENGINE_ROOT}\ENGINE.md — Script reference, batch ops, processing levels, tool rules, stage guidance
+- {ENGINE_ROOT}\settings\character_profile.md — Full personality, speech patterns, action pool, special triggers
 
-All script paths are relative to the engine root. ENGINE.md contains the full script reference table.
+All script paths are relative to the engine root. Use batch.py --input for bulk operations.
 ```
 
-> **Use your own absolute path**, e.g., `C:\Users\YourName\Documents\roleplay`. If using English docs, change the first line to `ENGINE_EN.md`.
+> **Replace `[Character Name]` and `[one-line identity description]` with your character.** Set engine root to the path you copied the folder to in Step 1.
 
-### Step 5: Initialize and Start
+### Step 3: Initialize and Start
 
 ```bash
-python tool/get_context.py
+python D:\engines\roleplay\tool\get_context.py
 ```
 
-The script auto-creates `settings/state.json`. Then just start chatting — the AI will automatically fetch context, process events, record memories and actions.
+The script auto-creates `state.json`. Then just start chatting — the AI will automatically fetch context, process events, record memories and actions.
 
 ---
 
 ## Customizing Character Settings
 
-The pre-written Haibara Ai config works out of the box, or you can adapt it for your own character.
+The pre-written **Mouri Ran** config works out of the box, or you can adapt it for your own character.
+
+### Three Files Define Your Character
+
+| File | Role | What It Holds | New Character? |
+|------|------|---------------|:---:|
+| `CLAUDE.md` (in your project) | **Character Anchor** | Character name + one-line identity + hard rules (role & engine ops) | ✅ Required |
+| `{engine}\settings\character_profile.md` | **Character Personality** | Full identity, personality, speech style, action pool, special triggers | ✅ Required |
+| `{engine}\settings\character_config.json` | **Emotion Model** | 3D baselines, event keywords, stage names, processing level | 🔧 Optional at first |
+
+**How they work together:**
+- **CLAUDE.md is the anchor** — always in the AI's context, cannot be skipped. Contains only the core identity and rules, ensuring the AI at minimum knows "who I am, what I can't do, and what tools I must call proactively."
+- **character_profile.md is the flesh** — the full persona. The AI reads it when it needs behavioral details (mannerisms, speech patterns, special reactions).
+- **character_config.json is the fuel** — how affection is calculated, what the four stages are called, which keywords trigger what. The scripts read this automatically; the AI doesn't touch it.
+
+### Quick Start: Create Your Own Character
+
+1. Copy `CLAUDE.example.md` → `CLAUDE.md`, replace three placeholders: `[Character Name]`, `[one-line identity description]`, `[your engine path]`
+2. Edit `settings/character_profile.md` in the engine folder — replace identity, personality, speech style, action pool, special triggers. Follow the preset structure as a template.
+3. (Optional) Edit `settings/character_config.json` — adjust 3D baselines, four stage names, event trigger keywords
+4. Delete `settings/state.json` (clears the previous character's state)
+5. Run `python tool/get_context.py` in terminal — done, start chatting
 
 ### Editing the Emotion Model (character_config.json)
 
@@ -141,12 +157,11 @@ Follow the template format: identity, personality, speech style, action pool, sp
 
 ## Switching Languages
 
-1. Rename the target language setting files (e.g., `character_config_en.json` → `character_config.json`)
-2. Do the same for `character_profile_*.md` → `character_profile.md`
-3. Delete `state.json` (old memories can't migrate between languages)
-4. Update `CLAUDE.md` to point to `ENGINE_EN.md` instead of `ENGINE.md` (or vice versa)
+1. Copy the other language folder to a new location (e.g., `ai-roleplay-engine_en` → `D:\engines\roleplay_en\`)
+2. Update the engine root path in `CLAUDE.md` to point to the new folder
+3. Delete `settings/state.json` in the new folder (old memories can't migrate between languages)
 
-> **Note**: `character_config.json` and `character_profile.md` are hardcoded filenames — the engine only reads these exact names. Do not edit the source code to change them. `state.json` contains runtime data (memories, action history) which cannot be migrated between languages — a reset is required.
+> No more manual file renaming — every language folder has an identical internal structure. **Swap the folder = swap the language.**
 
 ---
 

@@ -6,6 +6,18 @@
 
 ---
 
+## 📋 Document Hierarchy
+
+> **Your character identity and hard rules are already anchored in CLAUDE.md — you do NOT need to reload the character personality from this file.**
+>
+> This document is the **complete tool operations manual**: scripts, batch ops, processing levels, tool rules, memory system, and stage behavior guidance. Skim in this order:
+>
+> ```
+> Script Reference → Batch Ops → Processing Level → Tool Rules (0-5) → Stage Behavior
+> ```
+
+---
+
 ## Script Reference
 
 | Purpose | Command |
@@ -50,7 +62,7 @@ echo '[...]' | python "{ENGINE_ROOT}/tool/batch.py"
 ```json
 [
   {"op": "get_context"},
-  {"op": "process_event", "event": "User fixed Haibara's lab equipment"},
+  {"op": "process_event", "event": "User fixed Ran's training equipment"},
   {"op": "add_memory", "text": "User fixed the centrifuge", "importance": 2},
   {"op": "record_action", "action": "Folded arms, nodded slightly"}
 ]
